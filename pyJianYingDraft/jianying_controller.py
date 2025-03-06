@@ -46,15 +46,19 @@ class Jianying_controller:
         draft_btn = draft_name_text.GetParentControl()
         assert draft_btn is not None
         draft_btn.Click(simulateMove=False)
-        time.sleep(10)
+        time.sleep(5)
         self.get_window()
-
+        # 按下快捷键 Shift+X
+        uia.SendKeys('{Shift}x')
+        uia.SendKeys('{Shift}x')
+        uia.SendKeys('{Shift}x')
+        time.sleep(2)
         # 点击导出按钮
         export_btn = self.app.TextControl(searchDepth=2, Compare=self.__edit_page_export_cmp)
         if not export_btn.Exists(0):
             raise AutomationError("未找到导出按钮")
         export_btn.Click(simulateMove=False)
-        time.sleep(10)
+        time.sleep(5)
         self.get_window()
 
         # 获取原始导出路径
