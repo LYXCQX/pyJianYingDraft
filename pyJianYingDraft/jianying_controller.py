@@ -143,7 +143,15 @@ class Jianying_controller:
             self.app_status = "edit"
             return True
         return False
-
+    def click_draft(self,draft_name):
+        draft_name_text = self.app.TextControl(searchDepth=2,
+                                               Compare=lambda ctrl, depth: self.__draft_name_cmp(draft_name, ctrl, depth))
+        if not draft_name_text.Exists(0):
+            raise exceptions.DraftNotFound(f"未找到名为{draft_name}的剪映草稿")
+        draft_btn = draft_name_text.GetParentControl()
+        assert draft_btn is not None
+        draft_btn.Click(simulateMove=False)
+        time.sleep(5)
     @staticmethod
     def __draft_name_cmp(draft_name: str, control: uia.TextControl, depth: int) -> bool:
         if depth != 2:
@@ -178,3 +186,4 @@ class Jianying_controller:
             return False
         full_desc: str = control.GetPropertyValue(30159).lower()
         return "ExportSucceedCloseBtn".lower() in full_desc
+
