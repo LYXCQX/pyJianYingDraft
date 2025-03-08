@@ -50,9 +50,8 @@ class Jianying_controller:
         self.get_window()
         # 按下快捷键 Shift+X
         uia.SendKeys('{Shift}x')
-        uia.SendKeys('{Shift}x')
-        uia.SendKeys('{Shift}x')
         time.sleep(2)
+        uia.SendKeys('{Shift}x')
         # 点击导出按钮
         export_btn = self.app.TextControl(searchDepth=2, Compare=self.__edit_page_export_cmp)
         if not export_btn.Exists(0):
@@ -97,7 +96,7 @@ class Jianying_controller:
         self.get_window()
         self.switch_to_home()
         time.sleep(2)
-
+        print(f"output_dir -----{output_dir}  export_path{export_path}")
         # 复制导出的文件到指定目录
         if output_dir is not None:
             shutil.move(export_path, output_dir)
