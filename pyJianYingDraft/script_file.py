@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 import warnings
 from copy import deepcopy
 
@@ -201,8 +202,19 @@ class Script_file:
 
         self.imported_materials = {}
         self.imported_tracks = []
-
-        with open(os.path.join(os.path.dirname(__file__), self.TEMPLATE_FILE), "r", encoding="utf-8") as f:
+        
+        # 处理资源文件路径
+        if getattr(sys, 'frozen', False):
+            # 如果是打包后的exe
+            template_path = os.path.join(sys._MEIPASS, 'pyJianYingDraft', 'pyJianYingDraft', self.TEMPLATE_FILE)
+        else:
+            # 如果是开发环境
+            template_path = os.path.join(os.path.dirname(__file__), self.TEMPLATE_FILE)
+            
+        if not os.path.exists(template_path):
+            raise FileNotFoundError(f"模板文件不存在: {template_path}")
+            
+        with open(template_path, "r", encoding="utf-8") as f:
             self.content = json.load(f)
 
     @staticmethod
