@@ -9,7 +9,8 @@ from typing import Type, Dict, List, Any
 
 from . import util
 from . import exceptions
-from .template_mode import Imported_track, Editable_track, Imported_media_track, Imported_text_track, Shrink_mode, Extend_mode, import_track
+from .template_mode import Imported_track, Editable_track, Imported_media_track, Imported_text_track, Shrink_mode, \
+    Extend_mode, import_track
 from .time_util import Timerange, tim, srt_tstamp
 from .local_materials import Video_material, Audio_material
 from .segment import Base_segment, Speed, Clip_settings
@@ -20,6 +21,7 @@ from .text_segment import Text_segment, Text_style
 from .track import Track_type, Base_track, Track
 
 from .metadata import Video_scene_effect_type, Video_character_effect_type, Filter_type
+
 
 class Script_material:
     """草稿文件中的素材信息部分"""
@@ -68,11 +70,16 @@ class Script_material:
         self.filters = []
 
     @overload
-    def __contains__(self, item: Union[Video_material, Audio_material]) -> bool: ...
+    def __contains__(self, item: Union[Video_material, Audio_material]) -> bool:
+        ...
+
     @overload
-    def __contains__(self, item: Union[Audio_fade, Audio_effect]) -> bool: ...
+    def __contains__(self, item: Union[Audio_fade, Audio_effect]) -> bool:
+        ...
+
     @overload
-    def __contains__(self, item: Union[Segment_animations, Video_effect, Transition, Filter]) -> bool: ...
+    def __contains__(self, item: Union[Segment_animations, Video_effect, Transition, Filter]) -> bool:
+        ...
 
     def __contains__(self, item) -> bool:
         if isinstance(item, Video_material):
@@ -153,6 +160,7 @@ class Script_material:
             "vocal_separations": []
         }
 
+
 class Script_file:
     """剪映草稿文件, 大部分接口定义在此"""
 
@@ -202,7 +210,7 @@ class Script_file:
 
         self.imported_materials = {}
         self.imported_tracks = []
-        
+
         # 处理资源文件路径
         if getattr(sys, 'frozen', False):
             # 如果是打包后的exe
@@ -210,10 +218,10 @@ class Script_file:
         else:
             # 如果是开发环境
             template_path = os.path.join(os.path.dirname(__file__), self.TEMPLATE_FILE)
-            
+
         if not os.path.exists(template_path):
             raise FileNotFoundError(f"模板文件不存在: {template_path}")
-            
+
         with open(template_path, "r", encoding="utf-8") as f:
             self.content = json.load(f)
 
@@ -232,6 +240,7 @@ class Script_file:
         if not os.path.exists(json_path):
             raise FileNotFoundError("JSON文件 '%s' 不存在" % json_path)
         with open(json_path, "r", encoding="utf-8") as f:
+            print(f)
             obj.content = json.load(f)
 
         util.assign_attr_with_json(obj, ["fps", "duration"], obj.content)
@@ -454,7 +463,7 @@ class Script_file:
                     index += 1
                     continue
                 if not line.isdigit():
-                    raise ValueError("Expected a number at line %d, got '%s'" % (index+1, line))
+                    raise ValueError("Expected a number at line %d, got '%s'" % (index + 1, line))
                 index += 1
                 read_state = "timestamp"
             elif read_state == "timestamp":
@@ -552,16 +561,19 @@ class Script_file:
         # 更新素材信息
         target_json_obj.update({name_key: material.material_name, "path": material.path, "duration": material.duration})
         if video_mode:
-            target_json_obj.update({"width": material.width, "height": material.height, "material_type": material.material_type})
+            target_json_obj.update(
+                {"width": material.width, "height": material.height, "material_type": material.material_type})
             if replace_crop:
                 target_json_obj.update({"crop": material.crop_settings.export_json()})
 
         return self
 
-    def replace_material_by_seg(self, track: Editable_track, segment_index: int, material: Union[Video_material, Audio_material],
+    def replace_material_by_seg(self, track: Editable_track, segment_index: int,
+                                material: Union[Video_material, Audio_material],
                                 source_timerange: Optional[Timerange] = None, *,
                                 handle_shrink: Shrink_mode = Shrink_mode.cut_tail,
-                                handle_extend: Union[Extend_mode, List[Extend_mode]] = Extend_mode.cut_material_tail) -> "Script_file":
+                                handle_extend: Union[
+                                    Extend_mode, List[Extend_mode]] = Extend_mode.cut_material_tail) -> "Script_file":
         """替换指定音视频轨道上指定片段的素材, 暂不支持变速片段的素材替换
 
         Args:
@@ -674,3 +686,19 @@ class Script_file:
         if self.save_path is None:
             raise ValueError("没有设置保存路径, 可能不在模板模式下")
         self.dump(self.save_path)
+
+    def replace_text_by_content(self, text, old_text):
+        imported_tracks = self.imported_tracks
+        have_replace = False
+        for track in imported_tracks:
+            if isinstance(track, Imported_text_track):
+                if have_replace:
+                    break
+                for mat in self.imported_materials["texts"]:
+                    content = json.loads(mat["content"])
+                    if content["text"].startswith(old_text):
+                        content["text"] = text
+                        mat["content"] = json.dumps(content, ensure_ascii=False)
+                        have_replace = True
+                        break
+        return self
