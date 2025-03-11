@@ -19,6 +19,19 @@ class Export_resolution(Enum):
     RES_720P = "720P"
     RES_480P = "480P"
 
+    @classmethod
+    def from_value(cls, value: str):
+        """根据值获取对应的枚举
+        Args:
+            value: 分辨率值，如 "1080P"
+        Returns:
+            Export_resolution: 对应的枚举值，如果未找到则返回默认值 RES_1080P
+        """
+        try:
+            return next(item for item in cls if item.value == value)
+        except StopIteration:
+            return cls.RES_1080P
+
 class Export_framerate(Enum):
     """导出帧率"""
     FR_24 = "24fps"
@@ -26,6 +39,19 @@ class Export_framerate(Enum):
     FR_30 = "30fps"
     FR_50 = "50fps"
     FR_60 = "60fps"
+
+    @classmethod
+    def from_value(cls, value: str):
+        """根据值获取对应的枚举
+        Args:
+            value: 帧率值，如 "30fps"
+        Returns:
+            Export_framerate: 对应的枚举值，如果未找到则返回默认值 FR_30
+        """
+        try:
+            return next(item for item in cls if item.value == value)
+        except StopIteration:
+            return cls.FR_30
 
 class ControlFinder:
     """控件查找器，封装部分与控件查找相关的逻辑"""
