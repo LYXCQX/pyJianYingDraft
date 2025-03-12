@@ -113,10 +113,6 @@ class Jianying_controller:
         draft_btn.Click(simulateMove=False)
         time.sleep(5)
         self.get_window()
-        # 按下快捷键 Shift+X
-        uia.SendKeys('{Shift}x')
-        time.sleep(2)
-        uia.SendKeys('{Shift}x')
         # 点击导出按钮
         export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("MainWindowTitleBarExportBtn"))
         if not export_btn.Exists(0):
@@ -198,7 +194,6 @@ class Jianying_controller:
         self.get_window()
         self.switch_to_home()
         time.sleep(2)
-        print(f"output_dir -----{output_dir}  export_path{export_path}")
         # 复制导出的文件到指定目录
         if output_path is not None:
             shutil.move(export_path, output_path)
@@ -247,8 +242,7 @@ class Jianying_controller:
 
     def click_draft(self, draft_name):
         draft_name_text = self.app.TextControl(searchDepth=2,
-                                               Compare=lambda ctrl, depth: self.__draft_name_cmp(draft_name, ctrl,
-                                                                                                 depth))
+                                               Compare=ControlFinder.desc_matcher(f"HomePageDraftTitle:{draft_name}", exact=True))
         if not draft_name_text.Exists(0):
             raise exceptions.DraftNotFound(f"未找到名为{draft_name}的剪映草稿")
         draft_btn = draft_name_text.GetParentControl()
@@ -259,8 +253,63 @@ class Jianying_controller:
     def have_draft(self, draft_name):
         # 点击对应草稿
         draft_name_text = self.app.TextControl(searchDepth=2,
-                                               Compare=lambda ctrl, depth: self.__draft_name_cmp(draft_name, ctrl,
-                                                                                                 depth))
+                                               Compare=ControlFinder.desc_matcher(f"HomePageDraftTitle:{draft_name}", exact=True))
         if not draft_name_text.Exists(0):
             return False
         return True
+
+    def find_button_with_timeout(self, searchDepth: int, matcher: Callable[[uia.Control, int], bool], timeout: float) -> uia.Control:
+        """在指定时间内找到控件
+        
+        Args:
+            control: 要搜索的控件
+            matcher: 匹配器函数
+            timeout: 超时时间（秒）
+            searchDepth: 搜索深度，默认为2
+            
+        Returns:
+            找到的控件
+            
+        Raises:
+            AutomationError: 超时未找到控件
+        """
+        st = time.time()
+        while True:
+            btn = self.app.TextControl(searchDepth=searchDepth, Compare=matcher)
+            if btn.Exists(0):
+                return btn
+            
+            if time.time() - st > timeout:
+                raise AutomationError("控件查找超时, 时限为%d秒" % timeout)
+            
+            time.sleep(0.1)
+            self.get_window()  # 刷新窗口状态
+    def find_button_par_with_timeout(self, searchDepth: int, matcher: Callable[[uia.Control, int], bool], timeout: float) -> uia.Control:
+        """在指定时间内找到控件
+
+        Args:
+            control: 要搜索的控件
+            matcher: 匹配器函数
+            timeout: 超时时间（秒）
+            searchDepth: 搜索深度，默认为2
+
+        Returns:
+            找到的控件
+
+        Raises:
+            AutomationError: 超时未找到控件
+        """
+        st = time.time()
+        while True:
+            setting_group = self.app.GroupControl(searchDepth=1, foundIndex=4)
+            if not setting_group.Exists(0):
+                raise AutomationError("未找到导出设置组")
+            btn = setting_group.TextControl(searchDepth=searchDepth, Compare=matcher)
+            if btn.Exists(0):
+                return btn
+
+            if time.time() - st > timeout:
+                raise AutomationError("控件查找超时, 时限为%d秒" % timeout)
+
+            time.sleep(0.1)
+            self.get_window()  # 刷新窗口状态
