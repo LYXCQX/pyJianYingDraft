@@ -12,6 +12,7 @@ from .exceptions import AutomationError
 
 class Export_resolution(Enum):
     """导出分辨率"""
+    DEFAULT = "默认"
     RES_8K = "8K"
     RES_4K = "4K"
     RES_2K = "2K"
@@ -34,6 +35,7 @@ class Export_resolution(Enum):
 
 class Export_framerate(Enum):
     """导出帧率"""
+    DEFAULT = "默认"
     FR_24 = "24fps"
     FR_25 = "25fps"
     FR_30 = "30fps"
