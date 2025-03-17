@@ -85,9 +85,9 @@ class Jianying_controller:
     """剪映窗口"""
     app_status: Literal["home", "edit", "pre_export"]
 
-    def __init__(self):
+    def __init__(self,set_top=True):
         """初始化剪映控制器, 此时剪映应该处于目录页"""
-        self.get_window()
+        self.get_window(set_top)
 
     def export_draft(self, draft_name: str, output_path: Optional[str] = None, *,
                      resolution: Optional[Export_resolution] = None,
@@ -224,7 +224,7 @@ class Jianying_controller:
         time.sleep(2)
         self.get_window()
 
-    def get_window(self) -> None:
+    def get_window(self,set_top=True) -> None:
         """寻找剪映窗口并置顶"""
         if hasattr(self, "app") and self.app.Exists(0):
             self.app.SetTopmost(False)
@@ -238,9 +238,9 @@ class Jianying_controller:
         if export_window.Exists(0):
             self.app = export_window
             self.app_status = "pre_export"
-
-        self.app.SetActive()
-        self.app.SetTopmost()
+        if set_top:
+            self.app.SetActive()
+            self.app.SetTopmost()
 
     def __jianying_window_cmp(self, control: uia.WindowControl, depth: int) -> bool:
         if control.Name != "剪映专业版":
