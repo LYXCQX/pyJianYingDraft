@@ -131,7 +131,7 @@ class Jianying_controller:
         if not export_btn.Exists(0):
             raise AutomationError("未在编辑窗口中找到导出按钮")
         export_btn.Click(simulateMove=False)
-        time.sleep(5)
+        # time.sleep(5)
         self.get_window()
 
         # 获取原始导出路径（带后缀名）
@@ -191,7 +191,7 @@ class Jianying_controller:
         # 等待导出完成
         st = time.time()
         while True:
-            self.get_window()
+            # self.get_window()
             if self.app_status != "pre_export": continue
 
             succeed_close_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportSucceedCloseBtn"))
@@ -203,8 +203,6 @@ class Jianying_controller:
                 raise AutomationError("导出超时, 时限为%d秒" % timeout)
 
             time.sleep(1)
-        time.sleep(2)
-
         # 回到目录页
         self.get_window()
         self.switch_to_home()
@@ -242,7 +240,7 @@ class Jianying_controller:
             self.app_status = "pre_export"
         if set_top:
             self.app.SetActive()
-            self.app.SetTopmost()
+            # self.app.SetTopmost()
 
     def __jianying_window_cmp(self, control: uia.WindowControl, depth: int) -> bool:
         if control.Name != "剪映专业版":
