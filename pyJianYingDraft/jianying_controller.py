@@ -3,6 +3,7 @@
 import time
 import shutil
 import uiautomation as uia
+import os
 
 from enum import Enum
 from typing import Optional, Literal, Callable
@@ -94,7 +95,7 @@ class Jianying_controller:
     def export_draft(self, draft_name: str, output_path: Optional[str] = None, *,
                      resolution: Optional[Export_resolution] = None,
                      framerate: Optional[Export_framerate] = None,
-                     timeout: float = 1200) -> None:
+                     timeout: float = 1200,juming= None) -> str | None:
         """导出指定的剪映草稿, **目前仅支持剪映6及以下版本**
 
         **注意: 需要确认有导出草稿的权限(不使用VIP功能或已开通VIP), 否则可能陷入死循环**
@@ -193,25 +194,52 @@ class Jianying_controller:
         while True:
             # self.get_window()
             if self.app_status != "pre_export": continue
-
+            has_close = False
             succeed_close_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportSucceedCloseBtn"))
             if succeed_close_btn.Exists(0):
-                succeed_close_btn.Click(simulateMove=False)
-                break
+                start_time = time.time()
+                while True:
+                    try:
+                        succeed_close_btn.Click(simulateMove=False)
+                        self.get_window()
+                        self.switch_to_home()
+                        has_close = True
+                        break
+                    except:
+                        if time.time() - start_time > 10:  # 10秒超时
+                            raise AutomationError("关闭导出窗口超时")
+                        pass
+                    time.sleep(0.5)  # 添加短暂延迟，避免过于频繁的尝试
 
             if time.time() - st > timeout:
                 raise AutomationError("导出超时, 时限为%d秒" % timeout)
-
+            if has_close:
+                break
             time.sleep(1)
-        # 回到目录页
-        self.get_window()
-        self.switch_to_home()
-        time.sleep(2)
-        # 复制导出的文件到指定目录
+        # 移动文件到目标目录
         if output_path is not None:
+            
+            # 获取导出文件的文件名
+            export_filename = os.path.basename(export_path)
+            print(os.path.isdir(export_path))
+            # 如果output_path是目录，则拼接完整路径
+            if os.path.isdir(export_path):
+                # 在目录下查找视频文件
+                video_files = [f for f in os.listdir(export_path) if f.endswith(('.mp4', '.mov', '.avi', '.wmv'))]
+                if video_files:
+                    video_name = video_files[0]  # 获取第一个视频文件的完整名称（包含后缀）
+                    final_path = os.path.join(output_path, export_filename, video_name)
+            else:
+                print(f'output_path {output_path}')
+                output_path = os.path.join(output_path, juming)
+                final_path = os.path.join(output_path,export_filename)
+                if not os.path.exists(output_path):
+                    os.makedirs(output_path)
+             # 移动文件
             shutil.move(export_path, output_path)
+            return final_path
+        return None
 
-        print(f"导出 {draft_name} 至 {output_path} 完成")
 
     def switch_to_home(self) -> None:
         """切换到剪映主页"""
