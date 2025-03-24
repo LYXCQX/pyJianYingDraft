@@ -186,7 +186,20 @@ class Jianying_controller:
         export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportOkBtn", exact=True))
         if not export_btn.Exists(0):
             raise AutomationError("未在导出窗口中找到导出按钮")
-        export_btn.Click(simulateMove=False)
+        # export_btn.Click(simulateMove=False)
+        start_time = time.time()
+        while True:
+            try:
+                export_btn.Click(simulateMove=False)
+                export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportOkBtn", exact=True))
+                if not export_btn.Exists(0):
+                    break
+            except:
+                pass
+            if time.time() - start_time > 5:  # 10秒超时
+                raise AutomationError("未在导出窗口中找到导出按钮")
+            pass
+            time.sleep(0.5)  # 添加短暂延迟，避免过于频繁的尝试
         time.sleep(5)
 
         # 等待导出完成
