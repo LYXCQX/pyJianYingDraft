@@ -4,6 +4,7 @@
 """
 
 import uuid
+from copy import deepcopy
 
 from typing import Optional, Literal, Union
 from typing import Dict, List, Tuple, Any
@@ -27,7 +28,9 @@ class Mask:
     """蒙版全局id, 由程序自动生成"""
 
     center_x: float
+    """蒙版中心x坐标, 以半素材宽为单位"""
     center_y: float
+    """蒙版中心y坐标, 以半素材高为单位"""
     width: float
     height: float
     aspect_ratio: float
@@ -243,6 +246,8 @@ class Transition:
 class Video_segment(Visual_segment):
     """安放在轨道上的一个视频/图片片段"""
 
+    material_instance: Video_material
+    """素材实例"""
     material_size: Tuple[int, int]
     """素材尺寸"""
 
@@ -267,15 +272,14 @@ class Video_segment(Visual_segment):
     在放入轨道时自动添加到素材列表中
     """
 
+    # TODO: material参数接受path进行便捷构造
     def __init__(self, material: Video_material, target_timerange: Timerange, *,
                  source_timerange: Optional[Timerange] = None, speed: Optional[float] = None, volume: float = 1.0,
                  clip_settings: Optional[Clip_settings] = None):
         """利用给定的视频/图片素材构建一个轨道片段, 并指定其时间信息及图像调节设置
 
-        片段创建完成后, 可通过`Script_file.add_segment`方法将其添加到轨道中
-
         Args:
-            material (`Video_material`): 素材实例, 注意你仍然需要为其调用`Script_file.add_material`来将其添加到素材列表中
+            material (`Video_material`): 素材实例
             target_timerange (`Timerange`): 片段在轨道上的目标时间范围
             source_timerange (`Timerange`, optional): 截取的素材片段的时间范围, 默认从开头根据`speed`截取与`target_timerange`等长的一部分
             speed (`float`, optional): 播放速度, 默认为1.0. 此项与`source_timerange`同时指定时, 将覆盖`target_timerange`中的时长
@@ -298,23 +302,33 @@ class Video_segment(Visual_segment):
 
         super().__init__(material.material_id, source_timerange, target_timerange, speed, volume, clip_settings=clip_settings)
 
+        self.material_instance = deepcopy(material)
         self.material_size = (material.width, material.height)
         self.effects = []
         self.filters = []
         self.transition = None
         self.mask = None
 
-    def add_animation(self, animation_type: Union[Intro_type, Outro_type, Group_animation_type]) -> "Video_segment":
-        """将给定的入场/出场/组合动画添加到此片段的动画列表中, 动画的起止时间自动确定"""
+    def add_animation(self, animation_type: Union[Intro_type, Outro_type, Group_animation_type],
+                      duration: Optional[Union[int, str]] = None) -> "Video_segment":
+        """将给定的入场/出场/组合动画添加到此片段的动画列表中
+
+        Args:
+            animation_type (`Intro_type`, `Outro_type`, or `Group_animation_type`): 动画类型
+            duration (`int` or `str`, optional): 动画持续时间, 单位为微秒. 若传入字符串则会调用`tim()`函数进行解析.
+                若不指定则使用动画类型定义的默认值. 理论上只适用于入场和出场动画.
+        """
+        if duration is not None:
+            duration = tim(duration)
         if isinstance(animation_type, Intro_type):
             start = 0
-            duration = animation_type.value.duration
+            duration = duration or animation_type.value.duration
         elif isinstance(animation_type, Outro_type):
-            start = self.target_timerange.duration - animation_type.value.duration
-            duration = animation_type.value.duration
+            duration = duration or animation_type.value.duration
+            start = self.target_timerange.duration - duration
         elif isinstance(animation_type, Group_animation_type):
             start = 0
-            duration = self.target_timerange.duration
+            duration = duration or self.target_timerange.duration
         else:
             raise TypeError("Invalid animation type %s" % type(animation_type))
 
@@ -390,7 +404,7 @@ class Video_segment(Visual_segment):
             round_corner = 0
 
         width = rect_width or size * self.material_size[1] * mask_type.value.default_aspect_ratio / self.material_size[0]
-        self.mask = Mask(mask_type.value, center_x, center_y,
+        self.mask = Mask(mask_type.value, center_x / (self.material_size[0] / 2), center_y / (self.material_size[1] / 2),
                          w=width, h=size, ratio=mask_type.value.default_aspect_ratio,
                          rot=rotation, inv=invert, feather=feather/100, round_corner=round_corner/100)
         self.extra_material_refs.append(self.mask.global_id)
