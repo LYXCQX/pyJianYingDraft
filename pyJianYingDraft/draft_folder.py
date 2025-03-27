@@ -80,7 +80,8 @@ class Draft_folder:
 
             # 删除草稿文件夹
             shutil.rmtree(draft_path)
-
+        except PermissionError:
+            raise
         except Exception as e:
             raise Exception(f"删除草稿失败: {str(e)}")
 

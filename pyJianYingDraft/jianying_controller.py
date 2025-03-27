@@ -127,12 +127,8 @@ class Jianying_controller:
         draft_btn.Click(simulateMove=False)
         time.sleep(5)
         self.get_window()
-        # 点击导出按钮
-        export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("MainWindowTitleBarExportBtn"))
-        if not export_btn.Exists(0):
-            raise AutomationError("未在编辑窗口中找到导出按钮")
-        export_btn.Click(simulateMove=False)
-        # time.sleep(5)
+        # 使用uiautomation的SendKeys发送Ctrl+E
+        self.send_keys('{Ctrl}e',3)
         self.get_window()
 
         # 获取原始导出路径（带后缀名）
@@ -260,11 +256,16 @@ class Jianying_controller:
             return
         if self.app_status != "edit":
             raise AutomationError("仅支持从编辑模式切换到主页")
-        close_btn = self.app.GroupControl(searchDepth=1, ClassName="TitleBarButton", foundIndex=3)
-        close_btn.Click(simulateMove=False)
+        # close_btn = self.app.GroupControl(searchDepth=1, ClassName="TitleBarButton", foundIndex=3)
+        # close_btn.Click(simulateMove=False)
+        self.send_keys('{Ctrl}{Alt}q',3)
         time.sleep(2)
         self.get_window()
 
+    def send_keys(self,key,count):
+        for _ in range(count):
+            uia.SendKeys(key)
+            time.sleep(0.5)
     def get_window(self,set_top=True) -> None:
         """寻找剪映窗口并置顶"""
         if hasattr(self, "app") and self.app.Exists(0):
