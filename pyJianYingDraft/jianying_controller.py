@@ -125,7 +125,8 @@ class Jianying_controller:
         draft_btn = draft_name_text.GetParentControl()
         assert draft_btn is not None
         draft_btn.Click(simulateMove=False)
-        time.sleep(5)
+        time.sleep(3)
+        self.close_relink_window()
         self.get_window()
         # 使用uiautomation的SendKeys发送Ctrl+E
         self.send_keys('{Ctrl}e',3)
@@ -196,8 +197,6 @@ class Jianying_controller:
                 raise AutomationError("未在导出窗口中找到导出按钮")
             pass
             time.sleep(0.5)  # 添加短暂延迟，避免过于频繁的尝试
-        time.sleep(5)
-
         # 等待导出完成
         st = time.time()
         while True:
@@ -249,17 +248,49 @@ class Jianying_controller:
             return final_path
         return None
 
+    def close_relink_window(self):
+        windows = uia.GetRootControl().GetChildren()
+        def search_relink_window(control):
+            """递归搜索链接媒体窗口"""
+            if (control.Name == "链接媒体" and
+                    "RelinkMediaView" in control.ClassName and
+                    control.ControlTypeName == "WindowControl" and
+                    control.IsEnabled and not control.IsOffscreen):
+                return control
+
+            for child in control.GetChildren():
+                result = search_relink_window(child)
+                if result:
+                    return result
+            return None
+        # 首先在主窗口中查找
+        main_window = None
+        for window in windows:
+            if window.Name == "剪映专业版" and "MainWindow" in window.ClassName:
+                main_window = window
+                break
+        if main_window:
+            relink_window = search_relink_window(main_window)
+            if relink_window:
+                # 重试几次确保窗口关闭
+                retry_count = 3
+                while retry_count > 0:
+                    self.send_keys('{Esc}', 1)
+                    # 重新检查窗口是否还存在
+                    if not search_relink_window(main_window):
+                        raise AutomationError("有素材未找到，结束导出")
+                    retry_count -= 1
 
     def switch_to_home(self) -> None:
         """切换到剪映主页"""
         if self.app_status == "home":
             return
         if self.app_status != "edit":
-            raise AutomationError("仅支持从编辑模式切换到主页")
+            self.send_keys('{Esc}', 3)
         # close_btn = self.app.GroupControl(searchDepth=1, ClassName="TitleBarButton", foundIndex=3)
         # close_btn.Click(simulateMove=False)
         self.send_keys('{Ctrl}{Alt}q',3)
-        time.sleep(2)
+        time.sleep(1.5)
         self.get_window()
 
     def send_keys(self,key,count):
