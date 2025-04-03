@@ -231,7 +231,6 @@ class Script_file:
         if not os.path.exists(json_path):
             raise FileNotFoundError("JSON文件 '%s' 不存在" % json_path)
         with open(json_path, "r", encoding="utf-8") as f:
-            print(f)
             obj.content = json.load(f)
 
         util.assign_attr_with_json(obj, ["fps", "duration"], obj.content)

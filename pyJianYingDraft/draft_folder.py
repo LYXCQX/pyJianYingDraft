@@ -116,7 +116,7 @@ class Draft_folder:
         draft_path = os.path.join(self.folder_path, draft_name)
         if not os.path.exists(draft_path):
             raise FileNotFoundError(f"草稿文件夹 {draft_name} 不存在")
-        print(os.path.join(draft_path, "draft_content.json"))
+        logger.info(os.path.join(draft_path, "draft_content.json"))
         return Script_file.load_template(os.path.join(draft_path, "draft_content.json"))
 
     def duplicate_as_template(self, template_name: str, new_draft_name: str, allow_replace: bool = False) -> Script_file:
@@ -215,9 +215,6 @@ class Draft_folder:
         local_appdata = os.path.join(local_appdata, "Local")  # 进入Local目录
         drafts_path = os.path.join(local_appdata, "JianyingPro", "User Data", "Projects", "com.lveditor.draft")
         
-        print(f"草稿文件夹路径: {drafts_path}")
-        print(f"文件夹是否存在: {os.path.exists(drafts_path)}")
-        
         if not os.path.exists(drafts_path):
             # 尝试其他可能的路径
             alternative_paths = [
@@ -227,9 +224,9 @@ class Draft_folder:
             ]
             
             for path in alternative_paths:
-                print(f"尝试替代路径: {path}")
+                # logger.info(f"尝试替代路径: {path}")
                 if os.path.exists(path):
-                    print(f"找到有效的草稿文件夹路径: {path}")
+                    # logger.info(f"找到有效的草稿文件夹路径: {path}")
                     return path
                     
             return None

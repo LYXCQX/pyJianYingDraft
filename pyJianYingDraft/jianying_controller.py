@@ -111,7 +111,7 @@ class Jianying_controller:
             `DraftNotFound`: 未找到指定名称的剪映草稿
             `AutomationError`: 剪映操作失败
         """
-        print(f"开始导出 {draft_name} 至 {output_path}")
+        # logger.info(f"开始导出 {draft_name} 至 {output_path}")
         self.get_window()
         self.switch_to_home()
 
@@ -128,14 +128,18 @@ class Jianying_controller:
         time.sleep(3)
         self.close_relink_window()
         self.get_window()
-        # 使用uiautomation的SendKeys发送Ctrl+E
-        self.send_keys('{Ctrl}e',3)
-        self.get_window()
 
-        # 获取原始导出路径（带后缀名）
-        export_path_sib = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportPath"))
-        if not export_path_sib.Exists(0):
-            raise AutomationError("未找到导出路径框")
+        start_time = time.time()
+        while True:
+            self.send_keys('{Ctrl}e',1)
+            self.get_window()
+            # 获取原始导出路径（带后缀名）
+            export_path_sib = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportPath"))
+            if export_path_sib.Exists(0):
+                break
+            if time.time() - start_time > 20:
+                raise AutomationError(f"未找到导出路径，超时时间：{20}秒")
+
         export_path_text = export_path_sib.GetSiblingControl(lambda ctrl: True)
         assert export_path_text is not None
         export_path = export_path_text.GetPropertyValue(30159)
@@ -229,7 +233,7 @@ class Jianying_controller:
             
             # 获取导出文件的文件名
             export_filename = os.path.basename(export_path)
-            print(os.path.isdir(export_path))
+            # logger.info(os.path.isdir(export_path))
             # 如果output_path是目录，则拼接完整路径
             if os.path.isdir(export_path):
                 # 在目录下查找视频文件
@@ -238,7 +242,7 @@ class Jianying_controller:
                     video_name = video_files[0]  # 获取第一个视频文件的完整名称（包含后缀）
                     final_path = os.path.join(output_path, export_filename, video_name)
             else:
-                print(f'output_path {output_path}')
+                # logger.info(f'output_path {output_path}')
                 output_path = os.path.join(output_path, juming)
                 final_path = os.path.join(output_path,export_filename)
                 if not os.path.exists(output_path):
@@ -275,6 +279,7 @@ class Jianying_controller:
                 # 重试几次确保窗口关闭
                 retry_count = 3
                 while retry_count > 0:
+                    self.get_window()
                     self.send_keys('{Esc}', 1)
                     # 重新检查窗口是否还存在
                     if not search_relink_window(main_window):
@@ -285,8 +290,8 @@ class Jianying_controller:
         """切换到剪映主页"""
         if self.app_status == "home":
             return
-        if self.app_status != "edit":
-            self.send_keys('{Esc}', 3)
+        # if self.app_status != "edit":
+        self.send_keys('{Esc}', 3)
         # close_btn = self.app.GroupControl(searchDepth=1, ClassName="TitleBarButton", foundIndex=3)
         # close_btn.Click(simulateMove=False)
         self.send_keys('{Ctrl}{Alt}q',3)
