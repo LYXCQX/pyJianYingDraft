@@ -116,7 +116,7 @@ class Draft_folder:
         draft_path = os.path.join(self.folder_path, draft_name)
         if not os.path.exists(draft_path):
             raise FileNotFoundError(f"草稿文件夹 {draft_name} 不存在")
-        logger.info(os.path.join(draft_path, "draft_content.json"))
+        print(os.path.join(draft_path, "draft_content.json"))
         return Script_file.load_template(os.path.join(draft_path, "draft_content.json"))
 
     def duplicate_as_template(self, template_name: str, new_draft_name: str, allow_replace: bool = False) -> Script_file:
