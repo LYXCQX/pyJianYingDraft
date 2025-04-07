@@ -125,12 +125,13 @@ class Jianying_controller:
         draft_btn = draft_name_text.GetParentControl()
         assert draft_btn is not None
         draft_btn.Click(simulateMove=False)
-        time.sleep(3)
-        self.close_relink_window()
-        self.get_window()
+        # time.sleep(3)
+        # self.close_relink_window()
+        # self.get_window()
 
         start_time = time.time()
         while True:
+            self.close_relink_window()
             self.send_keys('{Ctrl}e',1)
             self.get_window()
             # 获取原始导出路径（带后缀名）
