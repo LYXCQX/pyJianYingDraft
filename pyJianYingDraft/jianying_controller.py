@@ -125,13 +125,12 @@ class Jianying_controller:
         draft_btn = draft_name_text.GetParentControl()
         assert draft_btn is not None
         draft_btn.Click(simulateMove=False)
-        # time.sleep(3)
-        # self.close_relink_window()
-        # self.get_window()
+        time.sleep(3)
+        self.close_relink_window()
+        self.get_window()
 
         start_time = time.time()
         while True:
-            self.close_relink_window()
             self.send_keys('{Ctrl}e',1)
             self.get_window()
             # 获取原始导出路径（带后缀名）
@@ -296,7 +295,7 @@ class Jianying_controller:
         # close_btn = self.app.GroupControl(searchDepth=1, ClassName="TitleBarButton", foundIndex=3)
         # close_btn.Click(simulateMove=False)
         self.send_keys('{Ctrl}{Alt}q',3)
-        time.sleep(1.5)
+        # time.sleep(1.5)
         self.get_window()
 
     def send_keys(self,key,count):
@@ -340,7 +339,7 @@ class Jianying_controller:
         draft_btn = draft_name_text.GetParentControl()
         assert draft_btn is not None
         draft_btn.Click(simulateMove=False)
-        time.sleep(5)
+        time.sleep(3)
 
     def have_draft(self, draft_name):
         # 点击对应草稿
