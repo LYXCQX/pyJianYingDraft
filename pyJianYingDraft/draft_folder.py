@@ -48,7 +48,7 @@ class Draft_folder:
         """
         draft_path = os.path.join(self.folder_path, draft_name)
         if not os.path.exists(draft_path):
-            raise FileNotFoundError(f"草稿文件夹 {draft_name} 不存在")
+            raise FileNotFoundError(f"删除 草稿时 草稿文件夹 {draft_name} 不存在")
 
         try:
             # 先从root_meta_info.json中移除草稿节点
