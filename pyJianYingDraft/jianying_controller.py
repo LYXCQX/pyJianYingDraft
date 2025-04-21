@@ -241,13 +241,34 @@ class Jianying_controller:
                 if video_files:
                     video_name = video_files[0]  # 获取第一个视频文件的完整名称（包含后缀）
                     final_path = os.path.join(output_path, export_filename, video_name)
+                    
+                    # 检查草稿目录下是否有video_cover.jpg，如果有则一起复制
+                    cover_file = os.path.join(export_path, "video_cover.jpg")
+                    if os.path.exists(cover_file):
+                        target_dir = os.path.join(output_path, export_filename)
+                        if not os.path.exists(target_dir):
+                            os.makedirs(target_dir)
+                        # 使用视频文件名来命名封面图
+                        video_name_without_ext = os.path.splitext(video_name)[0]
+                        target_cover = os.path.join(target_dir, f"{video_name_without_ext}_cover.jpg")
+                        shutil.copy2(cover_file, target_cover)
             else:
                 # logger.info(f'output_path {output_path}')
                 output_path = os.path.join(output_path, juming)
-                final_path = os.path.join(output_path,export_filename)
+                final_path = os.path.join(output_path, export_filename)
                 if not os.path.exists(output_path):
                     os.makedirs(output_path)
-             # 移动文件
+                
+                # 检查草稿目录下是否有video_cover.jpg，如果有则一起复制
+                draft_dir = os.path.dirname(export_path)
+                cover_file = os.path.join(draft_dir, "video_cover.jpg")
+                if os.path.exists(cover_file):
+                    # 使用导出文件名来命名封面图
+                    export_name_without_ext = os.path.splitext(export_filename)[0]
+                    target_cover = os.path.join(output_path, f"{export_name_without_ext}_cover.jpg")
+                    shutil.copy2(cover_file, target_cover)
+            
+            # 移动文件
             shutil.move(export_path, output_path)
             return final_path
         return None
