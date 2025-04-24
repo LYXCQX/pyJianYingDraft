@@ -764,7 +764,7 @@ class Script_file:
             raise ValueError("没有设置保存路径, 可能不在模板模式下")
         self.dump(self.save_path)
 
-    def replace_text_by_content(self, text, old_text):
+    def replace_text_by_content(self, text, old_text, model='eq'):
         imported_tracks = self.imported_tracks
         have_replace = False
         for track in imported_tracks:
@@ -773,9 +773,30 @@ class Script_file:
                     break
                 for mat in self.imported_materials["texts"]:
                     content = json.loads(mat["content"])
-                    if content["text"].startswith(old_text):
-                        content["text"] = text
-                        mat["content"] = json.dumps(content, ensure_ascii=False)
-                        have_replace = True
-                        break
+                    if model == 'in':
+                        if old_text in content["text"]:
+                            old_len = len(content["text"])
+                            content["text"] = content["text"].replace(old_text,text)
+                            new_len = len(content["text"])
+                            # 更新styles中的range值
+                            for style in content.get("styles", []):
+                                start = math.ceil(style["range"][0] / old_len * new_len)
+                                end = math.ceil(style["range"][1] / old_len * new_len)
+                                style["range"] = [start, end]
+                            mat["content"] = json.dumps(content, ensure_ascii=False)
+                            have_replace = True
+                            break
+                    else:
+                        if content["text"].startswith(old_text):
+                            old_len = len(content["text"])
+                            content["text"] = text
+                            new_len = len(content["text"])
+                            # 更新styles中的range值
+                            for style in content.get("styles", []):
+                                start = math.ceil(style["range"][0] / old_len * new_len)
+                                end = math.ceil(style["range"][1] / old_len * new_len)
+                                style["range"] = [start, end]
+                            mat["content"] = json.dumps(content, ensure_ascii=False)
+                            have_replace = True
+                            break
         return self
