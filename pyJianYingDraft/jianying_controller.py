@@ -212,8 +212,8 @@ class Jianying_controller:
                 start_time = time.time()
                 while True:
                     try:
-                        succeed_close_btn.Click(simulateMove=False)
                         self.get_window()
+                        succeed_close_btn.Click(simulateMove=False)
                         self.switch_to_home()
                         has_close = True
                         break
