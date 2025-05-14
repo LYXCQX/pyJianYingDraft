@@ -744,7 +744,7 @@ class Script_file:
         # 对轨道排序并导出
         track_list: List[Base_track] = list(self.tracks.values())
         track_list.extend(self.imported_tracks)
-        track_list.sort(key=lambda track: track.render_index)
+        # track_list.sort(key=lambda track: track.render_index)
         self.content["tracks"] = [track.export_json() for track in track_list]
 
         return json.dumps(self.content, ensure_ascii=False, indent=4)
