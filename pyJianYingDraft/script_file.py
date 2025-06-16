@@ -832,7 +832,7 @@ class Script_file:
         imported_tracks = self.imported_tracks
         have_replace = False
         for track in imported_tracks:
-            if isinstance(track, Imported_text_track):
+            if isinstance(track, ImportedTextTrack):
                 if have_replace:
                     break
                 for mat in self.imported_materials["texts"]:
