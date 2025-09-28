@@ -131,6 +131,9 @@ class Jianying_controller:
 
         start_time = time.time()
         while True:
+            export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("MainWindowTitleBarExportBtn"))
+            if not export_btn.Exists(0):
+                continue
             self.send_keys('{Ctrl}e',1)
             self.get_window()
             # 获取原始导出路径（带后缀名）
