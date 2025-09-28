@@ -125,7 +125,7 @@ class Jianying_controller:
         draft_btn = draft_name_text.GetParentControl()
         assert draft_btn is not None
         draft_btn.Click(simulateMove=False)
-        time.sleep(3)
+        time.sleep(8)
         # self.close_relink_window()
         self.get_window()
 
