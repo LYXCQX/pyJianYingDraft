@@ -125,14 +125,18 @@ class Jianying_controller:
         draft_btn = draft_name_text.GetParentControl()
         assert draft_btn is not None
         draft_btn.Click(simulateMove=False)
-        time.sleep(8)
         # self.close_relink_window()
         self.get_window()
 
         start_time = time.time()
         while True:
+            if time.time() - start_time > 20:
+                raise AutomationError(f"未找到导出路径，超时时间：{20}秒")
             export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("MainWindowTitleBarExportBtn"))
             if not export_btn.Exists(0):
+                time.sleep(2)
+                assert draft_btn is not None
+                draft_btn.Click(simulateMove=False)
                 continue
             self.send_keys('{Ctrl}e',1)
             self.get_window()
@@ -140,9 +144,6 @@ class Jianying_controller:
             export_path_sib = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportPath"))
             if export_path_sib.Exists(0):
                 break
-            if time.time() - start_time > 20:
-                raise AutomationError(f"未找到导出路径，超时时间：{20}秒")
-
         export_path_text = export_path_sib.GetSiblingControl(lambda ctrl: True)
         assert export_path_text is not None
         export_path = export_path_text.GetPropertyValue(30159)
