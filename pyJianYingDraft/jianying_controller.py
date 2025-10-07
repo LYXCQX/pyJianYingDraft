@@ -114,26 +114,30 @@ class Jianying_controller:
         # logger.info(f"开始导出 {draft_name} 至 {output_path}")
         self.get_window()
         self.switch_to_home()
-        # self.get_window()
-        # # 点击对应草稿
-        # draft_name_text = self.app.TextControl(
-        #     searchDepth=2,
-        #     Compare=ControlFinder.desc_matcher(f"HomePageDraftTitle:{draft_name}", exact=True)
-        # )
-        # if not draft_name_text.Exists(0):
-        #     raise exceptions.DraftNotFound(f"未找到名为{draft_name}的剪映草稿")
-        # draft_btn = draft_name_text.GetParentControl()
-        # assert draft_btn is not None
-        # draft_btn.Click(simulateMove=False)
+
+        # 点击对应草稿
+        draft_name_text = self.app.TextControl(
+            searchDepth=2,
+            Compare=ControlFinder.desc_matcher(f"HomePageDraftTitle:{draft_name}", exact=True)
+        )
+        if not draft_name_text.Exists(0):
+            raise exceptions.DraftNotFound(f"未找到名为{draft_name}的剪映草稿")
+        draft_btn = draft_name_text.GetParentControl()
+        assert draft_btn is not None
+        draft_btn.Click(simulateMove=False)
         # self.close_relink_window()
-        self.click_draft(draft_name)
+        self.get_window()
+
         start_time = time.time()
         while True:
             if time.time() - start_time > 20:
                 raise AutomationError(f"未找到导出路径，超时时间：{20}秒")
             export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("MainWindowTitleBarExportBtn"))
             if not export_btn.Exists(0):
-                self.click_draft(draft_name)
+                time.sleep(2)
+                self.get_window()
+                assert draft_btn is not None
+                draft_btn.Click(simulateMove=False)
                 continue
             self.send_keys('{Ctrl}e',1)
             self.get_window()
@@ -354,7 +358,6 @@ class Jianying_controller:
         return False
 
     def click_draft(self, draft_name):
-        self.get_window()
         draft_name_text = self.app.TextControl(searchDepth=2,
                                                Compare=ControlFinder.desc_matcher(f"HomePageDraftTitle:{draft_name}", exact=True))
         if not draft_name_text.Exists(0):
