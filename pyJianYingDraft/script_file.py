@@ -254,6 +254,12 @@ class Script_file:
         else:
             raise TypeError("错误的素材类型: '%s'" % type(material))
         return self
+    def add_vocal_separations(self, vocal_separation) -> "Script_file":
+        """向草稿文件中添加一个素材"""
+        if vocal_separation in self.imported_materials["vocal_separations"]:  # 素材已存在
+            return self
+        self.imported_materials["vocal_separations"].append(vocal_separation)
+        return self
 
     def add_track(self, track_type: Track_type, track_name: Optional[str] = None, *,
                   mute: bool = False,
