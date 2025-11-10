@@ -21,6 +21,7 @@ from .text_segment import Text_segment, Text_style, TextBubble
 from .track import Track_type, Base_track, Track
 
 from .metadata import Video_scene_effect_type, Video_character_effect_type, Filter_type
+from social_auto_upload.conf import BASE_DIR
 
 
 class Script_material:
@@ -205,13 +206,13 @@ class Script_file:
         self.imported_tracks = []
 
         # 处理资源文件路径
-        if getattr(sys, 'frozen', False):
-            # 如果是打包后的exe
-            template_path = os.path.join(sys._MEIPASS, 'pyJianYingDraft', 'pyJianYingDraft', self.TEMPLATE_FILE)
-        else:
-            # 如果是开发环境
-            template_path = os.path.join(os.path.dirname(__file__), self.TEMPLATE_FILE)
-
+        # if getattr(sys, 'frozen', False):
+        #     # 如果是打包后的exe
+        #     template_path = os.path.join(sys._MEIPASS, 'pyJianYingDraft', 'pyJianYingDraft', self.TEMPLATE_FILE)
+        # else:
+        #     # 如果是开发环境
+        #     template_path = os.path.join(os.path.dirname(__file__), self.TEMPLATE_FILE)
+        template_path = os.path.join(BASE_DIR, 'pyJianYingDraft', 'pyJianYingDraft', self.TEMPLATE_FILE)
         if not os.path.exists(template_path):
             raise FileNotFoundError(f"模板文件不存在: {template_path}")
 
