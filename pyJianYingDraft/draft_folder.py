@@ -83,6 +83,7 @@ class Draft_folder:
         except PermissionError:
             raise
         except Exception as e:
+            shutil.rmtree(draft_path)
             raise Exception(f"删除草稿失败: {str(e)}")
 
     def inspect_material(self, draft_name: str) -> None:
