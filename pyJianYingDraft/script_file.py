@@ -211,8 +211,8 @@ class Script_file:
         #     template_path = os.path.join(sys._MEIPASS, 'pyJianYingDraft', 'pyJianYingDraft', self.TEMPLATE_FILE)
         # else:
         #     # 如果是开发环境
-        #     template_path = os.path.join(os.path.dirname(__file__), self.TEMPLATE_FILE)
-        template_path = os.path.join(BASE_DIR, 'pyJianYingDraft', 'pyJianYingDraft', self.TEMPLATE_FILE)
+        template_path = os.path.join(os.path.dirname(__file__), self.TEMPLATE_FILE)
+        # template_path = os.path.join(BASE_DIR, 'pyJianYingDraft', 'pyJianYingDraft', self.TEMPLATE_FILE)
         if not os.path.exists(template_path):
             raise FileNotFoundError(f"模板文件不存在: {template_path}")
 
