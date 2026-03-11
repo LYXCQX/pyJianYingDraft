@@ -237,7 +237,7 @@ class Script_file:
             obj.content = json.load(f)
 
         util.assign_attr_with_json(obj, ["fps", "duration"], obj.content)
-        util.assign_attr_with_json(obj, ["width", "height"], obj.content["canvas_config"])
+        # util.assign_attr_with_json(obj, ["width", "height"], obj.content["canvas_config"])
 
         obj.imported_materials = deepcopy(obj.content["materials"])
         obj.imported_tracks = [import_track(track_data) for track_data in obj.content["tracks"]]
