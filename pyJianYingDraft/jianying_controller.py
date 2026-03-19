@@ -11,7 +11,7 @@ from typing import Optional, Literal, Callable
 from . import exceptions
 from .exceptions import AutomationError
 
-class Export_resolution(Enum):
+class ExportResolution(Enum):
     """导出分辨率"""
     DEFAULT = "默认"
     RES_8K = "8K"
@@ -34,7 +34,7 @@ class Export_resolution(Enum):
         except StopIteration:
             return cls.RES_1080P
 
-class Export_framerate(Enum):
+class ExportFramerate(Enum):
     """导出帧率"""
     DEFAULT = "默认"
     FR_24 = "24fps"
@@ -81,7 +81,7 @@ class ControlFinder:
             return (class_name == curr_class_name) if exact else (class_name in curr_class_name)
         return matcher
 
-class Jianying_controller:
+class JianyingController:
     """剪映控制器"""
 
     app: uia.WindowControl
@@ -93,9 +93,9 @@ class Jianying_controller:
         self.get_window(set_top)
 
     def export_draft(self, draft_name: str, output_path: Optional[str] = None, *,
-                     resolution: Optional[Export_resolution] = None,
-                     framerate: Optional[Export_framerate] = None,
-                     timeout: float = 1200,juming= None) -> str | None:
+                     resolution: Optional[ExportResolution] = None,
+                     framerate: Optional[ExportFramerate] = None,
+                     timeout: float = 1200,juming= None) -> None:
         """导出指定的剪映草稿, **目前仅支持剪映6及以下版本**
 
         **注意: 需要确认有导出草稿的权限(不使用VIP功能或已开通VIP), 否则可能陷入死循环**
@@ -236,7 +236,7 @@ class Jianying_controller:
             time.sleep(1)
         # 移动文件到目标目录
         if output_path is not None:
-            
+
             # 获取导出文件的文件名
             export_filename = os.path.basename(export_path)
             # logger.info(os.path.isdir(export_path))
@@ -247,7 +247,7 @@ class Jianying_controller:
                 if video_files:
                     video_name = video_files[0]  # 获取第一个视频文件的完整名称（包含后缀）
                     final_path = os.path.join(output_path, export_filename, video_name)
-                    
+
                     # 检查草稿目录下是否有video_cover.jpg，如果有则一起复制
                     cover_file = os.path.join(export_path, "video_cover.jpg")
                     if os.path.exists(cover_file):
@@ -264,7 +264,7 @@ class Jianying_controller:
                 final_path = os.path.join(output_path, export_filename)
                 if not os.path.exists(output_path):
                     os.makedirs(output_path)
-                
+
                 # 检查草稿目录下是否有video_cover.jpg，如果有则一起复制
                 draft_dir = os.path.dirname(export_path)
                 cover_file = os.path.join(draft_dir, "video_cover.jpg")
@@ -273,7 +273,7 @@ class Jianying_controller:
                     export_name_without_ext = os.path.splitext(export_filename)[0]
                     target_cover = os.path.join(output_path, f"{export_name_without_ext}_cover.jpg")
                     shutil.copy2(cover_file, target_cover)
-            
+
             # 移动文件
             shutil.move(export_path, output_path)
             return final_path
@@ -378,16 +378,16 @@ class Jianying_controller:
 
     def find_button_with_timeout(self, searchDepth: int, matcher: Callable[[uia.Control, int], bool], timeout: float) -> uia.Control:
         """在指定时间内找到控件
-        
+
         Args:
             control: 要搜索的控件
             matcher: 匹配器函数
             timeout: 超时时间（秒）
             searchDepth: 搜索深度，默认为2
-            
+
         Returns:
             找到的控件
-            
+
         Raises:
             AutomationError: 超时未找到控件
         """
@@ -396,10 +396,10 @@ class Jianying_controller:
             btn = self.app.TextControl(searchDepth=searchDepth, Compare=matcher)
             if btn.Exists(0):
                 return btn
-            
+
             if time.time() - st > timeout:
                 raise AutomationError("控件查找超时, 时限为%d秒" % timeout)
-            
+
             time.sleep(0.1)
             self.get_window()  # 刷新窗口状态
     def find_button_par_with_timeout(self, searchDepth: int, matcher: Callable[[uia.Control, int], bool], timeout: float) -> uia.Control:
