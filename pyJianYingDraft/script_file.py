@@ -840,8 +840,8 @@ class Script_file:
         have_replace = False
         for track in imported_tracks:
             if isinstance(track, ImportedTextTrack):
-                if have_replace:
-                    break
+                # if have_replace:
+                #     break
                 for mat in self.imported_materials["texts"]:
                     content = json.loads(mat["content"])
                     if model == 'in':
@@ -856,7 +856,7 @@ class Script_file:
                                 style["range"] = [start, end]
                             mat["content"] = json.dumps(content, ensure_ascii=False)
                             have_replace = True
-                            break
+                            # break
                     else:
                         if content["text"].startswith(old_text):
                             old_len = len(content["text"])
@@ -869,5 +869,5 @@ class Script_file:
                                 style["range"] = [start, end]
                             mat["content"] = json.dumps(content, ensure_ascii=False)
                             have_replace = True
-                            break
+                            # break
         return self
