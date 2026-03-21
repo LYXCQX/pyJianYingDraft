@@ -103,8 +103,16 @@ class VideoMaterial:
             import imageio
             gif = imageio.get_reader(path)
 
-            self.material_type = "video"
-            self.duration = int(round(gif.get_meta_data()['duration'] * gif.get_length() * 1e3))
+            self.material_type = "gif"
+            try:
+                # 尝试从元数据获取duration
+                meta_data = gif.get_meta_data()
+                duration_per_frame = meta_data.get('duration', 0.1)  # 默认100ms每帧
+                self.duration = int(round(duration_per_frame * gif.get_length() * 1e3))
+                
+            except (KeyError, AttributeError):
+                # 如果获取失败，使用默认值：假设每帧100ms
+                self.duration = int(round(0.1 * gif.get_length() * 1e3))
             self.width, self.height = info.image_tracks[0].width, info.image_tracks[0].height  # type: ignore
             gif.close()
         elif len(info.image_tracks):
