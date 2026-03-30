@@ -4,6 +4,8 @@ import time
 import shutil
 import uiautomation as uia
 import os
+import subprocess
+import psutil
 
 from enum import Enum
 from typing import Optional, Literal, Callable
@@ -87,9 +89,17 @@ class JianyingController:
     app: uia.WindowControl
     """剪映窗口"""
     app_status: Literal["home", "edit", "pre_export"]
+    jianying_exe_path: Optional[str] = None
+    """剪映可执行文件路径"""
 
-    def __init__(self,set_top=True):
-        """初始化剪映控制器, 此时剪映应该处于目录页"""
+    def __init__(self, set_top=True, jianying_exe_path: Optional[str] = None):
+        """初始化剪映控制器, 此时剪映应该处于目录页
+        
+        Args:
+            set_top: 是否置顶窗口
+            jianying_exe_path: 剪映可执行文件路径，用于重启剪映
+        """
+        self.jianying_exe_path = jianying_exe_path
         self.get_window(set_top)
 
     def export_draft(self, draft_name: str, output_path: Optional[str] = None, *,
@@ -329,14 +339,84 @@ class JianyingController:
         for _ in range(count):
             uia.SendKeys(key)
             time.sleep(0.5)
-    def get_window(self,set_top=True) -> None:
-        """寻找剪映窗口并置顶"""
+    
+    def is_jianying_process_running(self) -> bool:
+        """检查剪映进程是否在运行"""
+        for proc in psutil.process_iter(['name']):
+            try:
+                if proc.info['name'] and proc.info['name'].lower() == 'jianyingpro.exe':
+                    return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return False
+    
+    def kill_jianying_process(self) -> None:
+        """强制杀掉剪映进程"""
+        killed = False
+        for proc in psutil.process_iter(['name', 'pid']):
+            try:
+                if proc.info['name'] and proc.info['name'].lower() == 'jianyingpro.exe':
+                    proc.kill()
+                    killed = True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        if killed:
+            time.sleep(2)  # 等待进程完全结束
+    
+    def start_jianying(self) -> None:
+        """启动剪映程序"""
+        if self.jianying_exe_path and os.path.exists(self.jianying_exe_path):
+            subprocess.Popen([self.jianying_exe_path])
+            # 等待剪映启动，最多等待30秒
+            max_wait = 30
+            wait_interval = 1
+            elapsed = 0
+            while elapsed < max_wait:
+                time.sleep(wait_interval)
+                elapsed += wait_interval
+                # 检查进程是否已启动
+                if self.is_jianying_process_running():
+                    # 进程已启动，再等待几秒让界面完全加载
+                    time.sleep(3)
+                    return
+            raise AutomationError(f"剪映启动超时（{max_wait}秒内未检测到进程）")
+        else:
+            raise AutomationError("未配置剪映可执行文件路径或路径不存在")
+    
+    def get_window(self, set_top=True) -> None:
+        """寻找剪映窗口并置顶，如果找不到则检查进程并重启"""
         if hasattr(self, "app") and self.app.Exists(0):
             self.app.SetTopmost(False)
 
         self.app = uia.WindowControl(searchDepth=1, Compare=self.__jianying_window_cmp)
         if not self.app.Exists(0):
-            raise AutomationError("剪映窗口未找到")
+            # 窗口未找到，检查进程
+            if self.is_jianying_process_running():
+                # 进程存在但窗口找不到，强制杀掉进程
+                self.kill_jianying_process()
+                # 重新启动剪映
+                self.start_jianying()
+                # 再次尝试查找窗口，增加重试次数
+                max_retries = 5
+                for i in range(max_retries):
+                    time.sleep(2)  # 每次重试前等待2秒
+                    self.app = uia.WindowControl(searchDepth=1, Compare=self.__jianying_window_cmp)
+                    if self.app.Exists(0):
+                        break
+                else:
+                    raise AutomationError("剪映窗口未找到（重启后仍未找到）")
+            else:
+                # 进程不存在，直接启动
+                self.start_jianying()
+                # 尝试查找窗口，增加重试次数
+                max_retries = 5
+                for i in range(max_retries):
+                    time.sleep(2)  # 每次重试前等待2秒
+                    self.app = uia.WindowControl(searchDepth=1, Compare=self.__jianying_window_cmp)
+                    if self.app.Exists(0):
+                        break
+                else:
+                    raise AutomationError("剪映窗口未找到（启动后仍未找到）")
 
         # 寻找可能存在的导出窗口
         export_window = self.app.WindowControl(searchDepth=1, Name="导出")
