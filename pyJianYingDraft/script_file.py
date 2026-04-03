@@ -805,7 +805,7 @@ class ScriptFile:
         self.content["fps"] = self.fps
         self.content["duration"] = self.duration
         self.content["config"]["maintrack_adsorb"] = self.maintrack_adsorb
-        self.content["canvas_config"] = {"width": self.width, "height": self.height, "ratio": "original"}
+        # self.content["canvas_config"] = {"width": self.width, "height": self.height, "ratio": "original"}
         self.content["materials"] = self.materials.export_json()
 
         # 合并导入的素材
