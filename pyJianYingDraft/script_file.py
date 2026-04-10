@@ -231,7 +231,7 @@ class ScriptFile:
 
         util.assign_attr_with_json(obj, ["fps", "duration"], obj.content)
         util.assign_attr_with_json(obj, ["maintrack_adsorb"], obj.content["config"])
-        # util.assign_attr_with_json(obj, ["width", "height"], obj.content["canvas_config"])
+        util.assign_attr_with_json(obj, ["width", "height"], obj.content["canvas_config"])
 
         obj.imported_materials = deepcopy(obj.content["materials"])
         obj.imported_tracks = [import_track(track_data) for track_data in obj.content["tracks"]]
@@ -805,7 +805,7 @@ class ScriptFile:
         self.content["fps"] = self.fps
         self.content["duration"] = self.duration
         self.content["config"]["maintrack_adsorb"] = self.maintrack_adsorb
-        # self.content["canvas_config"] = {"width": self.width, "height": self.height, "ratio": "original"}
+        self.content["canvas_config"] = {"width": self.width, "height": self.height, "ratio": "original"}
         self.content["materials"] = self.materials.export_json()
 
         # 合并导入的素材
