@@ -96,8 +96,39 @@ class VideoMaterial:
         # 有视频轨道的视为视频素材
         if len(info.video_tracks):
             self.material_type = "video"
-            self.duration = int(info.video_tracks[0].duration * 1e3)  # type: ignore
-            self.width, self.height = info.video_tracks[0].width, info.video_tracks[0].height  # type: ignore
+            # Handle case where duration might be a list or tuple
+            duration_value = info.video_tracks[0].duration
+            if isinstance(duration_value, (list, tuple)):
+                # If it's a list or tuple, take the first element
+                duration_value = duration_value[0] if duration_value else 0
+            # Convert to float if it's a string
+            if isinstance(duration_value, str):
+                try:
+                    duration_value = float(duration_value)
+                except (ValueError, TypeError):
+                    duration_value = 0
+            self.duration = int(float(duration_value) * 1e3)  # type: ignore
+            # Handle width and height which might also be strings or lists/tuples
+            width_value = info.video_tracks[0].width
+            height_value = info.video_tracks[0].height
+            
+            if isinstance(width_value, (list, tuple)):
+                width_value = width_value[0] if width_value else 0
+            if isinstance(width_value, str):
+                try:
+                    width_value = int(width_value)
+                except (ValueError, TypeError):
+                    width_value = 0
+            
+            if isinstance(height_value, (list, tuple)):
+                height_value = height_value[0] if height_value else 0
+            if isinstance(height_value, str):
+                try:
+                    height_value = int(height_value)
+                except (ValueError, TypeError):
+                    height_value = 0
+            
+            self.width, self.height = int(width_value), int(height_value)
         # gif文件使用imageio库获取长度
         elif postfix.lower() == ".gif":
             import imageio
@@ -183,7 +214,17 @@ class AudioMaterial:
             raise ValueError("音频素材不应包含视频轨道")
         if not len(info.audio_tracks):
             raise ValueError(f"给定的素材文件 {path} 没有音频轨道")
-        self.duration = int(info.audio_tracks[0].duration * 1e3)  # type: ignore
+        # Handle case where duration might be a list or tuple
+        duration_value = info.audio_tracks[0].duration
+        if isinstance(duration_value, (list, tuple)):
+            duration_value = duration_value[0] if duration_value else 0
+        # Convert to float if it's a string
+        if isinstance(duration_value, str):
+            try:
+                duration_value = float(duration_value)
+            except (ValueError, TypeError):
+                duration_value = 0
+        self.duration = int(float(duration_value) * 1e3)  # type: ignore
 
     def export_json(self) -> Dict[str, Any]:
         return {
