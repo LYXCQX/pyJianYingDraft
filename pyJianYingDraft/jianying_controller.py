@@ -1,5 +1,6 @@
 """剪映自动化控制，主要与自动导出有关"""
 
+import logging
 import time
 import shutil
 import uiautomation as uia
@@ -12,6 +13,8 @@ from typing import Optional, Literal, Callable
 
 from . import exceptions
 from .exceptions import AutomationError
+
+logger = logging.getLogger(__name__)
 
 class ExportResolution(Enum):
     """导出分辨率"""
@@ -159,6 +162,35 @@ class JianyingController:
         export_path_text = export_path_sib.GetSiblingControl(lambda ctrl: True)
         assert export_path_text is not None
         export_path = export_path_text.GetPropertyValue(30159)
+
+        # ✅ 导出前再次校验：导出文件名必须以草稿名开头
+        # 防止 UI 点击错位 / 剪映首页草稿重排 / 弹窗拦截后点进了错误草稿，
+        # 结果把别人家的内容导出来（最严重会把错误的成品发到线上）。
+        # 校验失败：关闭当前导出窗口回到首页，然后抛 DraftNotFound（与草稿不存在一致的错误语义）。
+        export_filename = os.path.basename(export_path) if export_path else ""
+        match = bool(draft_name) and bool(export_filename) and export_filename.startswith(draft_name)
+        logger.warning(
+            f"[export_draft] 草稿名前缀校验: draft_name={draft_name!r}, export_path={export_path!r}, "
+            f"export_filename={export_filename!r}, match={match}"
+        )
+        if not match:
+            logger.error(
+                f"[export_draft] ❌ 导出文件名不以草稿名开头，疑似点错了草稿！"
+                f"draft_name={draft_name!r} 但 export_filename={export_filename!r}，将回首页并抛出 DraftNotFound。"
+            )
+            # 尝试关闭当前导出弹层（按 ESC），然后切回首页
+            try:
+                self.send_keys('{ESC}', 3)
+            except Exception:
+                pass
+            try:
+                self.switch_to_home()
+            except Exception:
+                pass
+            raise exceptions.DraftNotFound(
+                f"草稿导出名校验失败：draft_name={draft_name!r}，实际导出文件={export_filename!r}，"
+                f"疑似点击了错误的草稿，已回首页。请重新尝试或手动确认首页草稿顺序。"
+            )
 
         # 设置分辨率
         if resolution is not None:
