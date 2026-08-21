@@ -105,6 +105,97 @@ class JianyingController:
         self.jianying_exe_path = jianying_exe_path
         self.get_window(set_top)
 
+    def _move_exported_file(self, export_path: str, output_path: Optional[str],
+                            draft_name: str, juming: Optional[str]) -> Optional[str]:
+        """移动导出文件到目标目录并返回最终路径。
+
+        Args:
+            export_path: 剪映实际导出的文件或目录路径
+            output_path: 用户指定的目标根目录（如果为None则不移动）
+            draft_name: 草稿名
+            juming: 剧名子目录名
+
+        Returns:
+            移动后的最终文件路径；若 output_path 为 None 则返回 None
+        """
+        if output_path is None:
+            return None
+
+        export_filename = os.path.basename(export_path)
+
+        if os.path.isdir(export_path):
+            video_files = [f for f in os.listdir(export_path) if f.endswith(('.mp4', '.mov', '.avi', '.wmv'))]
+            if video_files:
+                video_name = video_files[0]
+                final_path = os.path.join(output_path, export_filename, video_name)
+
+                cover_file = os.path.join(export_path, "video_cover.jpg")
+                if os.path.exists(cover_file):
+                    target_dir = os.path.join(output_path, export_filename)
+                    if not os.path.exists(target_dir):
+                        os.makedirs(target_dir)
+                    video_name_without_ext = os.path.splitext(video_name)[0]
+                    target_cover = os.path.join(target_dir, f"{video_name_without_ext}_cover.jpg")
+                    shutil.copy2(cover_file, target_cover)
+        else:
+            output_path = os.path.join(output_path, juming)
+            final_path = os.path.join(output_path, export_filename)
+            if not os.path.exists(output_path):
+                os.makedirs(output_path)
+
+            draft_dir = os.path.dirname(export_path)
+            cover_file = os.path.join(draft_dir, "video_cover.jpg")
+            if os.path.exists(cover_file):
+                export_name_without_ext = os.path.splitext(export_filename)[0]
+                target_cover = os.path.join(output_path, f"{export_name_without_ext}_cover.jpg")
+                shutil.copy2(cover_file, target_cover)
+
+        shutil.move(export_path, output_path)
+        return final_path
+
+    def _check_file_exists_stable(self, path: str, stable_checks: int = 3, interval: float = 2.0) -> bool:
+        """检查文件/目录是否存在且大小稳定（导出仍在写入时大小会持续变化）。
+
+        Args:
+            path: 待检查路径
+            stable_checks: 连续多少次大小一致才认为稳定（>=1）
+            interval: 每次检查间隔秒数
+
+        Returns:
+            文件存在且大小稳定返回 True，否则 False
+        """
+        if not path or not os.path.exists(path):
+            return False
+        if stable_checks <= 1:
+            return True
+
+        prev_size = None
+        consistent = 0
+        for _ in range(stable_checks):
+            try:
+                if os.path.isdir(path):
+                    total = 0
+                    for root, _, files in os.walk(path):
+                        for f in files:
+                            fp = os.path.join(root, f)
+                            if os.path.exists(fp):
+                                total += os.path.getsize(fp)
+                    cur_size = total
+                else:
+                    cur_size = os.path.getsize(path)
+            except OSError:
+                return False
+
+            if prev_size is not None and cur_size == prev_size:
+                consistent += 1
+            else:
+                consistent = 0
+            if consistent >= stable_checks - 1:
+                return True
+            prev_size = cur_size
+            time.sleep(interval)
+        return False
+
     def export_draft(self, draft_name: str, output_path: Optional[str] = None, *,
                      resolution: Optional[ExportResolution] = None,
                      framerate: Optional[ExportFramerate] = None,
@@ -124,6 +215,10 @@ class JianyingController:
             `DraftNotFound`: 未找到指定名称的剪映草稿
             `AutomationError`: 剪映操作失败
         """
+        # 用于异常回退时确认文件是否真的已导出完成
+        export_path_for_fallback: Optional[str] = None
+        export_filename_for_fallback: Optional[str] = None
+
         # logger.info(f"开始导出 {draft_name} 至 {output_path}")
         self.get_window()
         self.switch_to_home()
@@ -162,6 +257,10 @@ class JianyingController:
         export_path_text = export_path_sib.GetSiblingControl(lambda ctrl: True)
         assert export_path_text is not None
         export_path = export_path_text.GetPropertyValue(30159)
+
+        # 保存导出路径，供异常回退判断使用
+        export_path_for_fallback = export_path
+        export_filename_for_fallback = os.path.basename(export_path) if export_path else None
 
         # ✅ 导出前再次校验：导出文件名必须以草稿名开头
         # 防止 UI 点击错位 / 剪映首页草稿重排 / 弹窗拦截后点进了错误草稿，
@@ -249,77 +348,81 @@ class JianyingController:
                 raise AutomationError("未在导出窗口中找到导出按钮")
             pass
             time.sleep(0.5)  # 添加短暂延迟，避免过于频繁的尝试
+
         # 等待导出完成
+        export_completed_normally = False
         st = time.time()
-        while True:
-            # self.get_window()
-            if self.app_status != "pre_export": continue
-            has_close = False
-            succeed_close_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportSucceedCloseBtn"))
-            if succeed_close_btn.Exists(0):
-                start_time = time.time()
-                while True:
+        export_error: Optional[Exception] = None
+        try:
+            while True:
+                # self.get_window()
+                if self.app_status != "pre_export": continue
+                has_close = False
+                succeed_close_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportSucceedCloseBtn"))
+                if succeed_close_btn.Exists(0):
+                    start_time = time.time()
+                    while True:
+                        try:
+                            self.get_window()
+                            succeed_close_btn.Click(simulateMove=False)
+                            self.switch_to_home()
+                            has_close = True
+                            break
+                        except:
+                            if time.time() - start_time > 10:  # 10秒超时
+                                raise AutomationError("关闭导出窗口超时")
+                            pass
+                        time.sleep(0.5)  # 添加短暂延迟，避免过于频繁的尝试
+
+                if time.time() - st > timeout:
+                    raise AutomationError("导出超时, 时限为%d秒" % timeout)
+                if has_close:
+                    break
+                time.sleep(1)
+            export_completed_normally = True
+        except Exception as e:
+            export_error = e
+            logger.warning(
+                f"[export_draft] 等待导出成功弹窗失败或超时：{e}。"
+                f"将回退检查 export_path={export_path_for_fallback!r} 是否已经存在导出文件。"
+            )
+
+        # 失败兜底：如果 UI 层面没等到成功提示，但导出路径文件已经存在且大小稳定，
+        # 则认为实际上已经导出完成（常见于剪映成功提示未弹 / 弹了但识别不到 / 卡死）。
+        if not export_completed_normally:
+            fallback_path = export_path_for_fallback
+            fallback_filename = export_filename_for_fallback
+            fallback_ok = False
+            if fallback_path:
+                # 额外校验：兜底时也检查文件名以草稿名开头，避免把其它文件当成成功导出
+                fallback_match = bool(draft_name) and bool(fallback_filename) and fallback_filename.startswith(draft_name)
+                if not fallback_match:
+                    logger.error(
+                        f"[export_draft] 兜底路径文件名不匹配草稿名前缀，跳过兜底判断："
+                        f"draft_name={draft_name!r}, fallback_filename={fallback_filename!r}"
+                    )
+                elif self._check_file_exists_stable(fallback_path, stable_checks=3, interval=2.0):
+                    logger.warning(
+                        f"[export_draft] ✅ 兜底成功：虽然未检测到剪映成功弹窗，"
+                        f"但导出文件已存在且大小稳定，视为导出成功。path={fallback_path!r}"
+                    )
+                    fallback_ok = True
+                    export_path = fallback_path
+                    # 尽量恢复到主页状态，便于后续草稿导出
                     try:
-                        self.get_window()
-                        succeed_close_btn.Click(simulateMove=False)
                         self.switch_to_home()
-                        has_close = True
-                        break
-                    except:
-                        if time.time() - start_time > 10:  # 10秒超时
-                            raise AutomationError("关闭导出窗口超时")
+                    except Exception:
                         pass
-                    time.sleep(0.5)  # 添加短暂延迟，避免过于频繁的尝试
 
-            if time.time() - st > timeout:
-                raise AutomationError("导出超时, 时限为%d秒" % timeout)
-            if has_close:
-                break
-            time.sleep(1)
+            if not fallback_ok:
+                logger.error(
+                    f"[export_draft] ❌ 兜底失败：导出文件不存在或仍在写入中，"
+                    f"将抛出原异常。path={fallback_path!r}, err={export_error}"
+                )
+                raise export_error
+
         # 移动文件到目标目录
-        if output_path is not None:
-
-            # 获取导出文件的文件名
-            export_filename = os.path.basename(export_path)
-            # logger.info(os.path.isdir(export_path))
-            # 如果output_path是目录，则拼接完整路径
-            if os.path.isdir(export_path):
-                # 在目录下查找视频文件
-                video_files = [f for f in os.listdir(export_path) if f.endswith(('.mp4', '.mov', '.avi', '.wmv'))]
-                if video_files:
-                    video_name = video_files[0]  # 获取第一个视频文件的完整名称（包含后缀）
-                    final_path = os.path.join(output_path, export_filename, video_name)
-
-                    # 检查草稿目录下是否有video_cover.jpg，如果有则一起复制
-                    cover_file = os.path.join(export_path, "video_cover.jpg")
-                    if os.path.exists(cover_file):
-                        target_dir = os.path.join(output_path, export_filename)
-                        if not os.path.exists(target_dir):
-                            os.makedirs(target_dir)
-                        # 使用视频文件名来命名封面图
-                        video_name_without_ext = os.path.splitext(video_name)[0]
-                        target_cover = os.path.join(target_dir, f"{video_name_without_ext}_cover.jpg")
-                        shutil.copy2(cover_file, target_cover)
-            else:
-                # logger.info(f'output_path {output_path}')
-                output_path = os.path.join(output_path, juming)
-                final_path = os.path.join(output_path, export_filename)
-                if not os.path.exists(output_path):
-                    os.makedirs(output_path)
-
-                # 检查草稿目录下是否有video_cover.jpg，如果有则一起复制
-                draft_dir = os.path.dirname(export_path)
-                cover_file = os.path.join(draft_dir, "video_cover.jpg")
-                if os.path.exists(cover_file):
-                    # 使用导出文件名来命名封面图
-                    export_name_without_ext = os.path.splitext(export_filename)[0]
-                    target_cover = os.path.join(output_path, f"{export_name_without_ext}_cover.jpg")
-                    shutil.copy2(cover_file, target_cover)
-
-            # 移动文件
-            shutil.move(export_path, output_path)
-            return final_path
-        return None
+        return self._move_exported_file(export_path, output_path, draft_name, juming)
 
     def close_relink_window(self):
         windows = uia.GetRootControl().GetChildren()
