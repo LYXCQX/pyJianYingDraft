@@ -266,11 +266,11 @@ class JianyingController:
         # 防止 UI 点击错位 / 剪映首页草稿重排 / 弹窗拦截后点进了错误草稿，
         # 结果把别人家的内容导出来（最严重会把错误的成品发到线上）。
         # 校验失败：关闭当前导出窗口回到首页，然后抛 DraftNotFound（与草稿不存在一致的错误语义）。
-        export_filename = os.path.basename(export_path) if export_path else ""
-        match = bool(draft_name) and bool(export_filename) and export_filename.startswith(draft_name)
+        export_filename = os.path.splitext(os.path.basename(export_path))[0]  if export_path else ""
+        match = bool(draft_name) and bool(export_filename) and draft_name.startswith(export_filename)
         logger.warning(
             f"[export_draft] 草稿名前缀校验: draft_name={draft_name!r}, export_path={export_path!r}, "
-            f"export_filename={export_filename!r}, match={match}"
+            f"export_filename={export_filename!r}, match={match}  {bool(draft_name)}  { bool(export_filename)}  {draft_name.startswith(export_filename)}"
         )
         if not match:
             logger.error(
