@@ -1,20 +1,18 @@
 """剪映自动化控制，主要与自动导出有关"""
 
-import logging
 import time
 import shutil
 import uiautomation as uia
 import os
 import subprocess
 import psutil
+from loguru import logger
 
 from enum import Enum
 from typing import Optional, Literal, Callable
 
 from . import exceptions
 from .exceptions import AutomationError
-
-logger = logging.getLogger(__name__)
 
 class ExportResolution(Enum):
     """导出分辨率"""
@@ -215,9 +213,22 @@ class JianyingController:
             `DraftNotFound`: 未找到指定名称的剪映草稿
             `AutomationError`: 剪映操作失败
         """
-        # 用于异常回退时确认文件是否真的已导出完成
-        export_path_for_fallback: Optional[str] = None
-        export_filename_for_fallback: Optional[str] = None
+        # 导出前刷新草稿时间戳为当前时间（让草稿看起来是"刚刚创建/修改"的）
+        try:
+            from .draft_folder import DraftFolder
+            drafts_folder = DraftFolder.get_drafts_folder()
+            logger.debug(f"[export_draft] 查找草稿根目录: drafts_folder={drafts_folder!r}")
+            if drafts_folder:
+                folder = DraftFolder(drafts_folder)
+                refreshed = folder.refresh_draft_timestamps(draft_name)
+                logger.debug(
+                    f"[export_draft] 刷新草稿时间戳: draft_name={draft_name!r}, "
+                    f"refreshed={refreshed}, drafts_folder={drafts_folder!r}"
+                )
+            else:
+                logger.warning(f"[export_draft] 未找到剪映草稿根目录，跳过时间戳刷新: draft_name={draft_name!r}")
+        except Exception as e:
+            logger.opt(exception=e).warning(f"[export_draft] 刷新草稿时间戳失败（不影响导出）: draft_name={draft_name!r}, error={e}")
 
         # logger.info(f"开始导出 {draft_name} 至 {output_path}")
         self.get_window()

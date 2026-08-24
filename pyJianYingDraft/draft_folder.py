@@ -4,6 +4,7 @@ import os
 import shutil
 import json
 import time
+from loguru import logger
 
 from typing import List
 
@@ -248,7 +249,89 @@ class DraftFolder:
         # 打开草稿
         return self.load_template(new_draft_name)
 
-    def get_drafts_folder(self):
+    def refresh_draft_timestamps(self, draft_name: str) -> bool:
+        """刷新指定草稿的时间戳为当前时间（导出前调用）
+
+        将 draft_meta_info.json 和 root_meta_info.json 中的
+        tm_draft_create / tm_draft_modified 更新为当前时间，让草稿看起来是"刚刚创建/修改"的。
+
+        Args:
+            draft_name (`str`): 草稿名称
+
+        Returns:
+            `bool`: 草稿文件夹不存在返回 False，成功更新返回 True
+
+        Raises:
+            `Exception`: 元数据文件读写失败
+        """
+        draft_path = os.path.join(self.folder_path, draft_name)
+        if not os.path.exists(draft_path):
+            logger.debug(f"[refresh_draft_timestamps] 草稿文件夹不存在，跳过: {draft_path}")
+            return False
+
+        # 生成当前时间戳（微秒级 16 位，与 duplicate_as_template 一致）
+        current_time = int(time.time() * 1000000)
+        try:
+            # 1. 更新草稿目录内的 draft_meta_info.json
+            draft_meta_file = os.path.join(draft_path, "draft_meta_info.json")
+            if os.path.exists(draft_meta_file):
+                with open(draft_meta_file, 'r', encoding='utf-8') as f:
+                    draft_meta = json.load(f)
+                old_create = draft_meta.get("tm_draft_create")
+                old_modified = draft_meta.get("tm_draft_modified")
+                draft_meta["tm_draft_modified"] = current_time
+                draft_meta["tm_draft_create"] = current_time
+                with open(draft_meta_file, 'w', encoding='utf-8') as f:
+                    json.dump(draft_meta, f, ensure_ascii=False, indent=2)
+            else:
+                logger.info(f"[refresh_draft_timestamps] draft_meta_info.json 不存在，跳过: {draft_meta_file}")
+
+            # 2. 更新根目录的 root_meta_info.json 中对应草稿的时间戳
+            drafts_folder = self.get_drafts_folder()
+            if not drafts_folder:
+                logger.info("[refresh_draft_timestamps] 未找到剪映草稿根目录，跳过 root_meta_info.json 更新")
+            else:
+                root_meta_file = os.path.join(drafts_folder, "root_meta_info.json")
+                if os.path.exists(root_meta_file):
+                    with open(root_meta_file, 'r', encoding='utf-8') as f:
+                        root_meta = json.load(f)
+
+                    if "all_draft_store" not in root_meta:
+                        logger.info("[refresh_draft_timestamps] root_meta_info.json 无 all_draft_store 字段，跳过")
+                    else:
+                        # 找到对应草稿并更新时间戳
+                        matched = False
+                        for draft in root_meta["all_draft_store"]:
+                            if draft.get("draft_name") == draft_name:
+                                old_create = draft.get("tm_draft_create")
+                                old_modified = draft.get("tm_draft_modified")
+                                draft["tm_draft_modified"] = current_time
+                                draft["tm_draft_create"] = current_time
+                                matched = True
+                                break
+                        if not matched:
+                            logger.info(
+                                f"[refresh_draft_timestamps] root_meta_info.json 中未找到 draft_name={draft_name!r}，"
+                                f"all_draft_store 共 {len(root_meta['all_draft_store'])} 条"
+                            )
+
+                        # 原子写入：临时文件 → 备份 → 替换
+                        temp_file = root_meta_file + ".tmp"
+                        with open(temp_file, 'w', encoding='utf-8') as f:
+                            json.dump(root_meta, f, ensure_ascii=False, indent=2)
+                        backup_file = root_meta_file + ".bak"
+                        if os.path.exists(root_meta_file):
+                            shutil.copy2(root_meta_file, backup_file)
+                        os.replace(temp_file, root_meta_file)
+                else:
+                    logger.info(f"[refresh_draft_timestamps] root_meta_info.json 不存在，跳过: {root_meta_file}")
+            return True
+        except Exception as e:
+            logger.exception(f"[refresh_draft_timestamps] 失败: draft_name={draft_name!r}, error={e}")
+            raise Exception(f"刷新草稿时间戳失败: {str(e)}")
+
+    @staticmethod
+    def get_drafts_folder():
         """获取剪映草稿文件夹路径"""
         appdata = os.getenv('APPDATA')
         if not appdata:
