@@ -213,23 +213,6 @@ class JianyingController:
             `DraftNotFound`: 未找到指定名称的剪映草稿
             `AutomationError`: 剪映操作失败
         """
-        # 导出前刷新草稿时间戳为当前时间（让草稿看起来是"刚刚创建/修改"的）
-        try:
-            from .draft_folder import DraftFolder
-            drafts_folder = DraftFolder.get_drafts_folder()
-            logger.debug(f"[export_draft] 查找草稿根目录: drafts_folder={drafts_folder!r}")
-            if drafts_folder:
-                folder = DraftFolder(drafts_folder)
-                refreshed = folder.refresh_draft_timestamps(draft_name)
-                logger.debug(
-                    f"[export_draft] 刷新草稿时间戳: draft_name={draft_name!r}, "
-                    f"refreshed={refreshed}, drafts_folder={drafts_folder!r}"
-                )
-            else:
-                logger.warning(f"[export_draft] 未找到剪映草稿根目录，跳过时间戳刷新: draft_name={draft_name!r}")
-        except Exception as e:
-            logger.opt(exception=e).warning(f"[export_draft] 刷新草稿时间戳失败（不影响导出）: draft_name={draft_name!r}, error={e}")
-
         # logger.info(f"开始导出 {draft_name} 至 {output_path}")
         self.get_window()
         self.switch_to_home()
