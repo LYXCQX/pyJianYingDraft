@@ -277,8 +277,6 @@ class DraftFolder:
             if os.path.exists(draft_meta_file):
                 with open(draft_meta_file, 'r', encoding='utf-8') as f:
                     draft_meta = json.load(f)
-                old_create = draft_meta.get("tm_draft_create")
-                old_modified = draft_meta.get("tm_draft_modified")
                 draft_meta["tm_draft_modified"] = current_time
                 draft_meta["tm_draft_create"] = current_time
                 with open(draft_meta_file, 'w', encoding='utf-8') as f:
