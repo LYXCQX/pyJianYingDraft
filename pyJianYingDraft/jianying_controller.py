@@ -2,6 +2,7 @@
 
 import time
 import shutil
+import threading
 import uiautomation as uia
 import os
 import subprocess
@@ -102,6 +103,19 @@ class JianyingController:
         """
         self.jianying_exe_path = jianying_exe_path
         self.get_window(set_top)
+        # 跨线程取消信号：外部线程调用 cancel_export() 置位，
+        # export_draft 的 while 循环检测到后抛 AutomationError 快速退出，避免长时间阻塞
+        self._cancel_event = threading.Event()
+
+    def cancel_export(self):
+        """请求取消正在进行的导出操作（线程安全，可从其他线程调用）"""
+        self._cancel_event.set()
+        logger.info("[Jianying_controller] 收到取消导出请求")
+
+    def _check_cancelled(self):
+        """检查取消信号，如已被取消则抛 AutomationError 终止 export_draft"""
+        if self._cancel_event.is_set():
+            raise AutomationError("导出已被用户取消")
 
     def _move_exported_file(self, export_path: str, output_path: Optional[str],
                             draft_name: str, juming: Optional[str]) -> Optional[str]:
@@ -233,11 +247,13 @@ class JianyingController:
 
         start_time = time.time()
         while True:
+            self._check_cancelled()
             if time.time() - start_time > 20:
                 raise AutomationError(f"未找到导出路径，超时时间：{20}秒")
             export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("MainWindowTitleBarExportBtn"))
             if not export_btn.Exists(0):
-                time.sleep(2)
+                if self._cancel_event.wait(2):
+                    raise AutomationError("导出已被用户取消")
                 self.get_window()
                 assert draft_btn is not None
                 draft_btn.Click(simulateMove=False)
@@ -331,6 +347,7 @@ class JianyingController:
         # export_btn.Click(simulateMove=False)
         start_time = time.time()
         while True:
+            self._check_cancelled()
             try:
                 export_btn.Click(simulateMove=False)
                 export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportOkBtn", exact=True))
@@ -341,7 +358,8 @@ class JianyingController:
             if time.time() - start_time > 5:  # 10秒超时
                 raise AutomationError("未在导出窗口中找到导出按钮")
             pass
-            time.sleep(0.5)  # 添加短暂延迟，避免过于频繁的尝试
+            if self._cancel_event.wait(0.5):
+                raise AutomationError("导出已被用户取消")
 
         # 等待导出完成
         export_completed_normally = False
@@ -349,6 +367,7 @@ class JianyingController:
         export_error: Optional[Exception] = None
         try:
             while True:
+                self._check_cancelled()
                 # self.get_window()
                 if self.app_status != "pre_export": continue
                 has_close = False
@@ -356,6 +375,7 @@ class JianyingController:
                 if succeed_close_btn.Exists(0):
                     start_time = time.time()
                     while True:
+                        self._check_cancelled()
                         try:
                             self.get_window()
                             succeed_close_btn.Click(simulateMove=False)
@@ -366,13 +386,15 @@ class JianyingController:
                             if time.time() - start_time > 10:  # 10秒超时
                                 raise AutomationError("关闭导出窗口超时")
                             pass
-                        time.sleep(0.5)  # 添加短暂延迟，避免过于频繁的尝试
+                        if self._cancel_event.wait(0.5):
+                            raise AutomationError("导出已被用户取消")
 
                 if time.time() - st > timeout:
                     raise AutomationError("导出超时, 时限为%d秒" % timeout)
                 if has_close:
                     break
-                time.sleep(1)
+                if self._cancel_event.wait(1):
+                    raise AutomationError("导出已被用户取消")
             export_completed_normally = True
         except Exception as e:
             export_error = e
