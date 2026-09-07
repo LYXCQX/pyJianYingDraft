@@ -7,6 +7,7 @@ import uiautomation as uia
 import os
 import subprocess
 import psutil
+import pythoncom
 from loguru import logger
 
 from enum import Enum
@@ -96,11 +97,12 @@ class JianyingController:
 
     def __init__(self, set_top=True, jianying_exe_path: Optional[str] = None):
         """初始化剪映控制器, 此时剪映应该处于目录页
-        
+
         Args:
             set_top: 是否置顶窗口
             jianying_exe_path: 剪映可执行文件路径，用于重启剪映
         """
+        pythoncom.CoInitialize()
         self.jianying_exe_path = jianying_exe_path
         self.get_window(set_top)
         # 跨线程取消信号：外部线程调用 cancel_export() 置位，
@@ -227,6 +229,7 @@ class JianyingController:
             `DraftNotFound`: 未找到指定名称的剪映草稿
             `AutomationError`: 剪映操作失败
         """
+        pythoncom.CoInitialize()
         # logger.info(f"开始导出 {draft_name} 至 {output_path}")
         self.get_window()
         self.switch_to_home()
