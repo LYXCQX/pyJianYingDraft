@@ -1,7 +1,7 @@
 import warnings
 import sys
 
-from .local_materials import CropSettings, VideoMaterial, AudioMaterial
+from .local_materials import CropSettings, VideoMaterial, AudioMaterial, get_media_duration_seconds
 from .keyframe import KeyframeProperty
 
 from .time_util import Timerange

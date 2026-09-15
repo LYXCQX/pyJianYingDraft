@@ -1,6 +1,90 @@
 import os
 import uuid
+import shutil
+import subprocess
 import pymediainfo
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def get_media_duration_seconds(video_path: str, stream_type: str = "video") -> float:
+    """三级方案获取媒体真实时长（秒）
+
+    1. ffprobe stream 级（优先，直接读取流时长）
+    2. ffprobe format 级（回退，读取容器层时长）
+    3. MediaInfo（最后手段）
+
+    Args:
+        video_path: 媒体文件路径
+        stream_type: "video" 或 "audio"，决定 ffprobe 选择哪个流
+    """
+    import os as _os
+    _basename = _os.path.basename(video_path)
+    _stream_selector = "v:0" if stream_type == "video" else "a:0"
+
+    # 方案1: ffprobe stream 级
+    try:
+        _ffprobe = shutil.which("ffprobe")
+        if _ffprobe:
+            logger.info(f"[时长获取] ffprobe路径: {_ffprobe}, 文件: {_basename}")
+            result = subprocess.run(
+                [_ffprobe, "-v", "error", "-select_streams", _stream_selector,
+                 "-show_entries", "stream=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", video_path],
+                capture_output=True, text=True, timeout=10
+            )
+            logger.info(f"[时长获取] ffprobe stream级 returncode={result.returncode}, stdout={result.stdout.strip()!r}, stderr={result.stderr.strip()!r}")
+            if result.returncode == 0 and result.stdout.strip():
+                duration_seconds = float(result.stdout.strip().split('\n')[0])
+                logger.info(f"[时长获取] ffprobe stream级成功: {_basename} -> {duration_seconds:.2f}秒")
+                return duration_seconds
+        else:
+            logger.info(f"[时长获取] 未找到ffprobe，跳过")
+    except Exception as ff_err:
+        logger.warning(f"[时长获取] ffprobe stream级失败: {ff_err}")
+
+    # 方案2: ffprobe format 级
+    try:
+        if _ffprobe:
+            logger.info(f"[时长获取] ffprobe stream级未取到，尝试format级")
+            result = subprocess.run(
+                [_ffprobe, "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", video_path],
+                capture_output=True, text=True, timeout=10
+            )
+            logger.info(f"[时长获取] ffprobe format级 returncode={result.returncode}, stdout={result.stdout.strip()!r}, stderr={result.stderr.strip()!r}")
+            if result.returncode == 0 and result.stdout.strip():
+                duration_seconds = float(result.stdout.strip())
+                logger.info(f"[时长获取] ffprobe format级成功: {_basename} -> {duration_seconds:.2f}秒")
+                return duration_seconds
+    except Exception as ff_err:
+        logger.warning(f"[时长获取] ffprobe format级失败: {ff_err}")
+
+    # 方案3: MediaInfo 后备
+    try:
+        logger.info(f"[时长获取] ffprobe未取到时长，使用MediaInfo后备: {_basename}")
+        info = pymediainfo.MediaInfo.parse(video_path, mediainfo_options={"File_TestContinuousFileNames": "0"})
+        tracks = info.video_tracks if stream_type == "video" else info.audio_tracks
+        if tracks:
+            duration_value = tracks[0].duration
+            if isinstance(duration_value, (list, tuple)):
+                duration_value = duration_value[0] if duration_value else 0
+            if isinstance(duration_value, str):
+                try:
+                    duration_value = float(duration_value)
+                except (ValueError, TypeError):
+                    duration_value = 0
+            duration_seconds = float(duration_value) / 1000.0
+            logger.info(f"[时长获取] MediaInfo成功: {_basename} -> {duration_seconds:.2f}秒")
+            return duration_seconds
+        else:
+            logger.warning(f"[时长获取] MediaInfo无{stream_type}轨道: {_basename}")
+    except Exception as mi_err:
+        logger.warning(f"[时长获取] MediaInfo失败: {mi_err}")
+
+    logger.warning(f"[时长获取] 所有方案均失败，返回0: {_basename}")
+    return 0.0
 
 from typing import Optional, Literal
 from typing import Dict, Any
@@ -96,18 +180,8 @@ class VideoMaterial:
         # 有视频轨道的视为视频素材
         if len(info.video_tracks):
             self.material_type = "video"
-            # Handle case where duration might be a list or tuple
-            duration_value = info.video_tracks[0].duration
-            if isinstance(duration_value, (list, tuple)):
-                # If it's a list or tuple, take the first element
-                duration_value = duration_value[0] if duration_value else 0
-            # Convert to float if it's a string
-            if isinstance(duration_value, str):
-                try:
-                    duration_value = float(duration_value)
-                except (ValueError, TypeError):
-                    duration_value = 0
-            self.duration = int(float(duration_value) * 1e3)  # type: ignore
+            duration_seconds = get_media_duration_seconds(path)
+            self.duration = int(duration_seconds * 1e6)  # 秒→微秒
             # Handle width and height which might also be strings or lists/tuples
             width_value = info.video_tracks[0].width
             height_value = info.video_tracks[0].height
@@ -214,17 +288,8 @@ class AudioMaterial:
             raise ValueError("音频素材不应包含视频轨道")
         if not len(info.audio_tracks):
             raise ValueError(f"给定的素材文件 {path} 没有音频轨道")
-        # Handle case where duration might be a list or tuple
-        duration_value = info.audio_tracks[0].duration
-        if isinstance(duration_value, (list, tuple)):
-            duration_value = duration_value[0] if duration_value else 0
-        # Convert to float if it's a string
-        if isinstance(duration_value, str):
-            try:
-                duration_value = float(duration_value)
-            except (ValueError, TypeError):
-                duration_value = 0
-        self.duration = int(float(duration_value) * 1e3)  # type: ignore
+        duration_seconds = get_media_duration_seconds(path, stream_type="audio")
+        self.duration = int(duration_seconds * 1e6)  # 秒→微秒
 
     def export_json(self) -> Dict[str, Any]:
         return {
